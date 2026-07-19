@@ -13,7 +13,7 @@ genera reportes semanales por cliente y cuenta.
 
 - **Next.js (App Router) + TypeScript + Tailwind CSS** — frontend y backend (Server Actions + Route Handlers).
 - **Supabase** — PostgreSQL con Row Level Security, Auth y Storage.
-- **Vercel** — hosting + Cron para jobs programados.
+- **Vercel** — hosting (plan Hobby; Cron para jobs programados queda deshabilitado por ahora, ver más abajo).
 - **Mercado Libre API** — OAuth 2.0, órdenes, envíos y notificaciones (con adaptador **mock** para desarrollar sin credenciales).
 
 ## Documentación
@@ -119,14 +119,26 @@ genera reportes semanales por cliente y cuenta.
 - **Precio congelado**: cada envío guarda su cálculo en `shipment_rate_calculations` con desglose auditable; los cambios futuros de precio nunca alteran semanas anteriores. Las correcciones manuales requieren motivo y quedan en auditoría.
 - **Liquidaciones** (`/settlements`): genera el borrador semanal por cliente con resumen por cuenta de ML y por zona (cantidad × precio unitario = subtotal), adicionales, ajustes manuales (con motivo obligatorio), validaciones bloqueantes antes de confirmar, estados (borrador → confirmada → enviada → pagada), export CSV/Excel, vista imprimible (PDF vía imprimir) y **mensaje listo para WhatsApp**.
 
-## Procesos programados (Vercel Cron — `vercel.json`)
+## Procesos programados (deshabilitados por ahora)
 
-| Ruta | Frecuencia | Función |
-|---|---|---|
-| `/api/cron/sync` | cada 10 min | Procesa notificaciones del webhook, jobs encolados y sync incremental |
-| `/api/cron/refresh-tokens` | cada 30 min | Renueva tokens próximos a vencer (lock anti-concurrencia; ante fallo → `needs_reauth`) |
+> ⚠️ **Vercel Cron está deshabilitado durante el desarrollo** (el plan Hobby solo
+> permite ejecuciones diarias, y este proyecto no lo necesita todavía). `vercel.json`
+> no declara `crons`. Los endpoints siguen existiendo y funcionan igual si se
+> disparan a mano o desde un scheduler externo:
 
-Ambos requieren header `Authorization: Bearer $CRON_SECRET`.
+| Ruta | Función |
+|---|---|
+| `/api/cron/sync` | Procesa notificaciones del webhook, jobs encolados y sync incremental |
+| `/api/cron/refresh-tokens` | Renueva tokens próximos a vencer (lock anti-concurrencia; ante fallo → `needs_reauth`) |
+
+Ambos requieren header `Authorization: Bearer $CRON_SECRET`. Mientras no haya cron
+automático, se pueden invocar manualmente (`curl -H "Authorization: Bearer $CRON_SECRET" https://tu-dominio/api/cron/sync`)
+o programar desde un servicio externo gratuito (GitHub Actions con `schedule`,
+cron-job.org, etc.) apuntando a esa URL. El webhook de Mercado Libre
+(`/api/webhooks/mercadolibre`) sigue funcionando en tiempo real de forma
+independiente del cron: solo la reconciliación de eventos perdidos y la
+renovación proactiva de tokens quedan sin disparo automático hasta reactivar
+un cron (Vercel Pro, GitHub Actions, etc.).
 
 ## Seguridad
 

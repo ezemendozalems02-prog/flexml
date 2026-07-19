@@ -20,7 +20,8 @@ Plataforma SaaS multi-tenant para empresas transportistas que operan entregas de
 │  │  /(client)     Portal del comercio (fase MVP+)             │ │
 │  │  /(auth)       Login / registro / invitaciones             │ │
 │  │  /api/webhooks/mercadolibre   Notificaciones ML            │ │
-│  │  /api/cron/*   Jobs programados (Vercel Cron)              │ │
+│  │  /api/cron/*   Jobs programados (disparo manual/externo;   │ │
+│  │                 sin Vercel Cron por ahora, ver §Sync)       │ │
 │  │  /api/oauth/mercadolibre/*    Flujo OAuth ML                │ │
 │  └───────────────────────────────────────────────────────────┘ │
 └────────────────────────────┬────────────────────────────────────┘
@@ -136,6 +137,14 @@ Tablas: `locations`, `location_aliases`, `zone_locations` (vista), `zone_rates`,
 - **Cron** (`/api/cron/sync`): recupera eventos perdidos, refresca envíos recientes, reconcilia estados, reintenta con backoff. Cada corrida se registra en `marketplace_sync_jobs` (inicio, fin, procesados, exitosos, fallidos, error, duración).
 - **Renovación de tokens** (`/api/cron/refresh-tokens`): renueva antes del vencimiento con lock lógico (`refresh_lock_until`) para evitar renovaciones simultáneas; ante fallo irrecuperable marca la conexión `needs_reauth`. *(No existe el “token infinito”: la conexión depende de la autorización vigente de ML.)*
 
+  > ⚠️ **Deshabilitado por ahora**: `vercel.json` no declara `crons` (el plan
+  > Hobby de Vercel solo admite ejecuciones diarias, y estos jobs pedían cada
+  > 10 y 30 minutos). Los endpoints siguen protegidos por `CRON_SECRET` y
+  > operativos; hay que dispararlos a mano o desde un scheduler externo
+  > (GitHub Actions, cron-job.org) hasta reactivar un cron real. El webhook
+  > no depende de esto y sigue procesando notificaciones en tiempo real; solo
+  > se pierde la reconciliación periódica y la renovación proactiva de tokens.
+
 ### Flujo del repartidor (PWA)
 Login → ruta de hoy → confirmar recepción → “Comenzar recorrido” (hora + ubicación) → por parada: Entregar (receptor, firma, foto, ubicación) / No pude entregar (motivo del catálogo, foto, observación → reintentar / reprogramar / devolver / revisión) → resumen del día → “Finalizar recorrido”.
 
@@ -198,7 +207,7 @@ flexcontrol/
 1. **Identificación de Flex**: el indicador (`logistic_type = "self_service"` según documentación conocida) debe validarse contra una cuenta real; la regla es configurable y versionada por si ML cambia el contrato.
 2. **Datos del comprador**: ML restringe datos personales según scopes y estado de la orden; el sistema tolera campos ausentes (minimización de datos).
 3. **Rate limits de ML**: sync con paginación, backoff y cola; volumen alto puede requerir worker externo (previsto en arquitectura).
-4. **Vercel Cron + funciones**: jobs largos se trocean por lotes con cursor persistido en `marketplace_sync_jobs`.
+4. **Jobs programados + funciones**: jobs largos se trocean por lotes con cursor persistido en `marketplace_sync_jobs`. Vercel Cron está deshabilitado por ahora (plan Hobby, solo ejecuciones diarias); disparo manual o scheduler externo mientras tanto (ver §Sincronización).
 5. **Webhooks**: ML exige respuesta < 500 ms; el endpoint solo persiste y encola.
 6. **RLS y rendimiento**: políticas basadas en membership con índices adecuados; consultas del panel siempre filtradas por organización.
 

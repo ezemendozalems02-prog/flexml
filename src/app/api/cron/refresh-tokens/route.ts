@@ -7,6 +7,10 @@ export const maxDuration = 120;
  * GET /api/cron/refresh-tokens — renueva credenciales próximas a vencer.
  * La renovación depende de la autorización vigente en Mercado Libre; las
  * conexiones irrecuperables quedan en needs_reauth para reconectar a mano.
+ *
+ * Vercel Cron está deshabilitado por ahora (plan Hobby, solo 1x/día); este
+ * endpoint sigue funcionando igual disparado a mano o desde un scheduler
+ * externo (ver README § Procesos programados).
  */
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");

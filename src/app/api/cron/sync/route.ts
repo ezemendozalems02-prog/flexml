@@ -6,11 +6,15 @@ import { processPendingNotifications } from "@/lib/mercadolibre/notifications-se
 export const maxDuration = 300;
 
 /**
- * GET /api/cron/sync — job programado (Vercel Cron).
+ * GET /api/cron/sync — job programado.
  * 1. Procesa notificaciones pendientes del webhook.
  * 2. Ejecuta jobs encolados (initial_import).
  * 3. Sincronización incremental de conexiones activas.
  * Autenticado con CRON_SECRET (Authorization: Bearer <secret>).
+ *
+ * Vercel Cron está deshabilitado por ahora (plan Hobby, solo 1x/día); este
+ * endpoint sigue funcionando igual disparado a mano o desde un scheduler
+ * externo (ver README § Procesos programados).
  */
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
