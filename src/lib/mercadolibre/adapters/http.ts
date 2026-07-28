@@ -71,7 +71,7 @@ function getAppCredentials() {
 }
 
 export class MercadoLibreHttpAdapter implements MercadoLibreProvider {
-  async exchangeCode(code: string, redirectUri: string): Promise<MLTokenResponse> {
+  async exchangeCode(code: string, redirectUri: string, codeVerifier: string): Promise<MLTokenResponse> {
     const { clientId, clientSecret } = getAppCredentials();
     return mlFetch<MLTokenResponse>("/oauth/token", {
       method: "POST",
@@ -82,6 +82,7 @@ export class MercadoLibreHttpAdapter implements MercadoLibreProvider {
         client_secret: clientSecret,
         code,
         redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
       }),
     });
   }

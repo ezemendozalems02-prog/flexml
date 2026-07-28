@@ -1,6 +1,6 @@
 import "server-only";
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildAuthorizationUrl } from "./provider";
 import { getMercadoLibreProvider, isMockMode } from "./index";
@@ -24,12 +24,16 @@ export async function startOAuthFlow(params: {
 }): Promise<string> {
   const admin = createAdminClient();
   const state = randomBytes(32).toString("hex");
+  // PKCE: Mercado Libre exige code_challenge en /authorization y code_verifier en /oauth/token.
+  const codeVerifier = randomBytes(32).toString("base64url");
+  const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
 
   const { error } = await admin.from("oauth_states").insert({
     state,
     organization_id: params.organizationId,
     client_id: params.clientId,
     user_id: params.userId,
+    code_verifier: codeVerifier,
     expires_at: new Date(Date.now() + STATE_TTL_MS).toISOString(),
   });
   if (error) throw new Error(`No se pudo iniciar OAuth: ${error.message}`);
@@ -44,6 +48,7 @@ export async function startOAuthFlow(params: {
     clientId: process.env.MERCADOLIBRE_CLIENT_ID!,
     redirectUri: process.env.MERCADOLIBRE_REDIRECT_URI!,
     state,
+    codeChallenge,
   });
 }
 
@@ -63,7 +68,7 @@ export async function handleOAuthCallback(code: string, state: string): Promise<
     .eq("state", state)
     .is("used_at", null)
     .gt("expires_at", new Date().toISOString())
-    .select("organization_id, client_id, user_id")
+    .select("organization_id, client_id, user_id, code_verifier")
     .maybeSingle();
 
   if (!stateRow) throw new Error("State inválido, vencido o ya utilizado");
@@ -71,7 +76,8 @@ export async function handleOAuthCallback(code: string, state: string): Promise<
   const provider = getMercadoLibreProvider();
   const tokens = await provider.exchangeCode(
     code,
-    process.env.MERCADOLIBRE_REDIRECT_URI ?? ""
+    process.env.MERCADOLIBRE_REDIRECT_URI ?? "",
+    stateRow.code_verifier ?? ""
   );
   const me = await provider.getMe({ accessToken: tokens.access_token });
 

@@ -119,8 +119,8 @@ export interface MLLabelFile {
 }
 
 export interface MercadoLibreProvider {
-  /** Intercambia el authorization code por tokens (server-side). */
-  exchangeCode(code: string, redirectUri: string): Promise<MLTokenResponse>;
+  /** Intercambia el authorization code por tokens (server-side). PKCE: requiere el code_verifier generado en startOAuthFlow. */
+  exchangeCode(code: string, redirectUri: string, codeVerifier: string): Promise<MLTokenResponse>;
   /** Renueva credenciales con el refresh token. */
   refreshToken(refreshToken: string): Promise<MLTokenResponse>;
   /** Usuario dueño del token. */
@@ -139,11 +139,12 @@ export interface MercadoLibreProvider {
   getShipmentLabel(creds: MLCredentials, shipmentId: string): Promise<MLLabelFile>;
 }
 
-/** URL de autorización OAuth por site (Argentina por defecto). */
+/** URL de autorización OAuth por site (Argentina por defecto). PKCE obligatorio (code_challenge S256). */
 export function buildAuthorizationUrl(params: {
   clientId: string;
   redirectUri: string;
   state: string;
+  codeChallenge: string;
   siteDomain?: string; // p.ej. "com.ar"
 }): string {
   const domain = params.siteDomain ?? "com.ar";
@@ -152,5 +153,7 @@ export function buildAuthorizationUrl(params: {
   url.searchParams.set("client_id", params.clientId);
   url.searchParams.set("redirect_uri", params.redirectUri);
   url.searchParams.set("state", params.state);
+  url.searchParams.set("code_challenge", params.codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
   return url.toString();
 }
