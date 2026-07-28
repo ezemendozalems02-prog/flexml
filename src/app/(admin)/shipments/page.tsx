@@ -60,9 +60,13 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
     );
   }
   if (params.when === "today") {
+    // sold_at (fecha real de la venta en ML), no created_at (fecha en que
+    // nosotros la importamos) — si no, un sync masivo "ensucia" el filtro
+    // marcando como "hoy" ventas de cualquier fecha.
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    query = query.gte("created_at", todayStart.toISOString());
+    const tomorrowStart = new Date(todayStart.getTime() + 86400_000);
+    query = query.gte("sold_at", todayStart.toISOString()).lt("sold_at", tomorrowStart.toISOString());
   }
   if (params.dispatch === "no") {
     query = query.in("internal_status", NOT_DISPATCHED_STATUSES);
