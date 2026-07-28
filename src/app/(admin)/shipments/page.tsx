@@ -58,9 +58,11 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
   }
 
   const from = (page - 1) * PAGE_SIZE;
-  const { data: shipments, count } = await query
+  const { data: shipments, count, error: queryError } = await query
     .order("created_at", { ascending: false })
     .range(from, from + PAGE_SIZE - 1);
+
+  if (queryError) console.error("Error consultando envíos:", queryError);
 
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -81,6 +83,12 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
           <p className="text-sm text-slate-500">{total} envíos encontrados</p>
         </div>
       </div>
+
+      {queryError && (
+        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+          Error consultando envíos: {queryError.message}
+        </p>
+      )}
 
       <form className="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-6">
         <input
