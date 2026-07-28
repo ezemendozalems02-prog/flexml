@@ -51,8 +51,9 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
   if (params.zone) {
     query = params.zone === "none" ? query.is("zone_id", null) : query.eq("zone_id", params.zone);
   }
-  if (params.flex === "1") query = query.eq("is_flex", true);
+  // Por defecto solo Flex (es lo que opera esta transportista); "all" trae también los que no son Flex.
   if (params.flex === "0") query = query.eq("is_flex", false);
+  else if (params.flex !== "all") query = query.eq("is_flex", true);
   if (params.q) {
     query = query.or(
       `external_shipment_id.ilike.%${params.q}%,external_order_id.ilike.%${params.q}%,title_summary.ilike.%${params.q}%`
@@ -178,8 +179,8 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
         </select>
         <div className="col-span-2 flex gap-2 md:col-span-6">
           <select name="flex" defaultValue={params.flex ?? ""} className="rounded-lg border border-slate-300 px-2 py-2 text-sm">
-            <option value="">Flex y no Flex</option>
-            <option value="1">Solo Flex</option>
+            <option value="">Solo Flex</option>
+            <option value="all">Flex y no Flex</option>
             <option value="0">Solo no Flex</option>
           </select>
           <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
