@@ -118,6 +118,18 @@ export interface MLLabelFile {
   byteLength: number;
 }
 
+/**
+ * Conductor asignado a un envío Flex ("Datos del transportista" en ML).
+ * Recurso: GET /flex/sites/{site}/shipments/{id}/assignment/v1.
+ * La respuesta documentada trae solo driver_id; el nombre queda null si ML
+ * no lo expone. `raw` conserva el payload completo para auditoría.
+ */
+export interface MLFlexDriver {
+  driverId: string | null;
+  driverName: string | null;
+  raw: unknown;
+}
+
 export interface MercadoLibreProvider {
   /** Intercambia el authorization code por tokens (server-side). PKCE: requiere el code_verifier generado en startOAuthFlow. */
   exchangeCode(code: string, redirectUri: string, codeVerifier: string): Promise<MLTokenResponse>;
@@ -137,6 +149,8 @@ export interface MercadoLibreProvider {
   getShipment(creds: MLCredentials, shipmentId: string): Promise<MLShipment>;
   /** Etiqueta del envío (MercadoLibreLabelProvider). Lanza MLApiError si ML no la entrega. */
   getShipmentLabel(creds: MLCredentials, shipmentId: string): Promise<MLLabelFile>;
+  /** Conductor Flex asignado; null si todavía no hay asignación (404). */
+  getFlexDriver(creds: MLCredentials, siteId: string, shipmentId: string): Promise<MLFlexDriver | null>;
 }
 
 /** URL de autorización OAuth por site (Argentina por defecto). PKCE obligatorio (code_challenge S256). */

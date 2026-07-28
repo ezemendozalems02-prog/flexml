@@ -1,6 +1,7 @@
 import type {
   MercadoLibreProvider,
   MLCredentials,
+  MLFlexDriver,
   MLLabelFile,
   MLOrder,
   MLSearchResult,
@@ -192,6 +193,23 @@ export class MercadoLibreMockAdapter implements MercadoLibreProvider {
     const id = Number(shipmentId);
     const sellerId = Math.floor(id / 100000);
     return buildShipment(sellerId, id % 100000);
+  }
+
+  /** Conductor Flex simulado: asignado solo cuando el envío ya salió. */
+  async getFlexDriver(
+    _creds: MLCredentials,
+    _siteId: string,
+    shipmentId: string
+  ): Promise<MLFlexDriver | null> {
+    const shipment = await this.getShipment(_creds, shipmentId);
+    if (!["shipped", "delivered", "not_delivered"].includes(shipment.status)) return null;
+    const names = ["Lucas Berttucci", "Sofía Ramallo", "Marcos Iglesias"];
+    const name = names[Math.abs(hash(shipmentId)) % names.length];
+    return {
+      driverId: String(9000 + (Math.abs(hash(shipmentId)) % 100)),
+      driverName: name,
+      raw: { mock: true, driver_id: 9000 + (Math.abs(hash(shipmentId)) % 100) },
+    };
   }
 
   /** Etiqueta simulada: PDF mínimo válido con el ID del envío. */

@@ -230,6 +230,14 @@ export default async function ShipmentDetailPage({
             <p className="mb-3 text-sm text-slate-600">
               {driver ? `Asignado a ${driver.first_name} ${driver.last_name}` : "Sin asignar"}
             </p>
+            {(s.flex_driver_name || s.flex_driver_id) && (
+              <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                Transportista según Mercado Libre:{" "}
+                <span className="font-medium text-slate-900">
+                  {s.flex_driver_name ?? `Conductor #${s.flex_driver_id}`}
+                </span>
+              </p>
+            )}
             <AssignDriverForm
               shipmentId={s.id}
               currentDriverId={driver?.id ?? null}

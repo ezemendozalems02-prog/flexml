@@ -66,6 +66,7 @@ export async function syncConnection(
 
   const stats: SyncStats = { processed: 0, created: 0, updated: 0, failed: 0 };
   const startedAt = Date.now();
+  resetFlexLookupBudget();
 
   try {
     const accessToken = await getValidAccessToken(conn.id);
@@ -226,24 +227,63 @@ async function upsertOrderWithShipment(
   }
 
   const shipment = await provider.getShipment(creds, String(order.shipping.id));
-  return upsertShipment(conn, order, orderRow.id, shipment);
+  return upsertShipment(conn, order, orderRow.id, shipment, creds);
+}
+
+// Estados donde tiene sentido preguntar por el conductor Flex asignado.
+const FLEX_DRIVER_STATUSES = ["ready_to_ship", "shipped", "delivered", "not_delivered"];
+// Tope de consultas de asignación por corrida: acota el tiempo de la función
+// y el rate limit de ML; lo no consultado se completa en corridas siguientes.
+const MAX_FLEX_LOOKUPS_PER_RUN = 80;
+let flexLookupsThisRun = 0;
+
+export function resetFlexLookupBudget() {
+  flexLookupsThisRun = 0;
 }
 
 async function upsertShipment(
   conn: ConnCtx,
   order: MLOrder,
   localOrderId: string,
-  shipment: MLShipment
+  shipment: MLShipment,
+  creds: { accessToken: string }
 ): Promise<"created" | "updated"> {
   const admin = createAdminClient();
   const flex = classifyFlex(shipment);
 
   const { data: existing } = await admin
     .from("shipments")
-    .select("id, external_status, external_substatus, internal_status")
+    .select("id, external_status, external_substatus, internal_status, flex_assignment_at")
     .eq("connection_id", conn.id)
     .eq("external_shipment_id", String(shipment.id))
     .maybeSingle();
+
+  /** Consulta y guarda el conductor Flex ("Datos del transportista" en ML). Mejor esfuerzo. */
+  const captureFlexDriver = async (shipmentDbId: string) => {
+    if (!flex.isFlex || !FLEX_DRIVER_STATUSES.includes(shipment.status)) return;
+    if (flexLookupsThisRun >= MAX_FLEX_LOOKUPS_PER_RUN) return;
+    flexLookupsThisRun++;
+    try {
+      const provider = getMercadoLibreProvider();
+      const driver = await provider.getFlexDriver(
+        creds,
+        shipment.site_id ?? "MLA",
+        String(shipment.id)
+      );
+      await admin
+        .from("shipments")
+        .update({
+          flex_driver_id: driver?.driverId ?? null,
+          flex_driver_name: driver?.driverName ?? null,
+          flex_assignment_raw: (driver?.raw as Record<string, unknown> | undefined) ?? null,
+          flex_assignment_at: new Date().toISOString(),
+        })
+        .eq("id", shipmentDbId);
+    } catch (err) {
+      // No frena el sync: el conductor es dato informativo
+      console.error(`Conductor Flex de ${shipment.id}:`, err);
+    }
+  };
 
   const addr = shipment.receiver_address;
   const promised = shipment.shipping_option?.estimated_delivery_time;
@@ -322,6 +362,8 @@ async function upsertShipment(
       metadata: { flex },
     });
 
+    await captureFlexDriver(created.id);
+
     // Determinar y congelar el precio del envío (mejor esfuerzo: la
     // liquidación semanal recalcula lo pendiente)
     try {
@@ -344,6 +386,11 @@ async function upsertShipment(
   if (updErr) throw new Error(`update shipment: ${updErr.message}`);
 
   await upsertAddress(existing.id, shipment);
+
+  // Conductor Flex: al cambiar el estado externo, o backfill si nunca se consultó
+  if (externalChanged || !existing.flex_assignment_at) {
+    await captureFlexDriver(existing.id);
+  }
 
   if (externalChanged) {
     await admin.from("shipment_events").insert({

@@ -3,6 +3,7 @@ import "server-only";
 import type {
   MercadoLibreProvider,
   MLCredentials,
+  MLFlexDriver,
   MLLabelFile,
   MLOrder,
   MLSearchResult,
@@ -59,6 +60,14 @@ async function mlFetch<T>(
     throw new MLApiError(res.status, await res.text(), path);
   }
   return (await res.json()) as T;
+}
+
+function pickString(obj: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const v = obj[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
 }
 
 function getAppCredentials() {
@@ -142,6 +151,55 @@ export class MercadoLibreHttpAdapter implements MercadoLibreProvider {
       headers: { "x-format-new": "true" },
     });
     return { ...data, raw: data };
+  }
+
+  /**
+   * Conductor Flex asignado. La respuesta documentada es {"driver_id": 1234};
+   * el nombre no está documentado, así que se parsea de forma laxa (por si ML
+   * lo agrega) y como plan B se consulta /shipments/{id}/carrier, que devuelve
+   * el nombre del transportista a cargo. 404 = sin asignación todavía.
+   */
+  async getFlexDriver(
+    creds: MLCredentials,
+    siteId: string,
+    shipmentId: string
+  ): Promise<MLFlexDriver | null> {
+    let raw: Record<string, unknown>;
+    try {
+      raw = await mlFetch<Record<string, unknown>>(
+        `/flex/sites/${encodeURIComponent(siteId)}/shipments/${encodeURIComponent(shipmentId)}/assignment/v1`,
+        { accessToken: creds.accessToken }
+      );
+    } catch (err) {
+      if (err instanceof MLApiError && err.status === 404) return null;
+      throw err;
+    }
+
+    const driverId = raw.driver_id != null ? String(raw.driver_id) : null;
+    const driverObj = (raw.driver ?? null) as Record<string, unknown> | null;
+    let driverName = pickString(raw, "driver_name", "name");
+    if (!driverName && driverObj) {
+      driverName =
+        pickString(driverObj, "name") ??
+        ([pickString(driverObj, "first_name"), pickString(driverObj, "last_name")]
+          .filter(Boolean)
+          .join(" ") ||
+          null);
+    }
+
+    if (!driverName) {
+      try {
+        const carrier = await mlFetch<Record<string, unknown>>(
+          `/shipments/${encodeURIComponent(shipmentId)}/carrier`,
+          { accessToken: creds.accessToken }
+        );
+        driverName = pickString(carrier, "name", "carrier_name");
+      } catch {
+        // mejor esfuerzo: el nombre queda null y se muestra el id
+      }
+    }
+
+    return { driverId, driverName: driverName || null, raw };
   }
 
   /**

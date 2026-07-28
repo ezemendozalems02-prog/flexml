@@ -50,7 +50,7 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
   let query = supabase
     .from("shipments")
     .select(
-      "id, external_shipment_id, external_order_id, title_summary, internal_status, external_status, is_flex, promised_date, attempt_count, created_at, clients(name), zones!zone_id(name, color), drivers(first_name, last_name), shipment_addresses(city, zip)",
+      "id, external_shipment_id, external_order_id, title_summary, internal_status, external_status, is_flex, promised_date, attempt_count, created_at, flex_driver_name, flex_driver_id, clients(name), zones!zone_id(name, color), drivers(first_name, last_name), shipment_addresses(city, zip)",
       { count: "exact" }
     )
     .eq("organization_id", orgId);
@@ -275,7 +275,15 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
-                    {driver ? `${driver.first_name} ${driver.last_name}` : <span className="text-slate-400">Sin asignar</span>}
+                    {driver ? (
+                      `${driver.first_name} ${driver.last_name}`
+                    ) : s.flex_driver_name || s.flex_driver_id ? (
+                      <span className="text-slate-500" title="Transportista informado por Mercado Libre">
+                        ML: {s.flex_driver_name ?? `#${s.flex_driver_id}`}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Sin asignar</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <FlexBadge isFlex={s.is_flex} />
