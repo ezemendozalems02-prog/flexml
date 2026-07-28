@@ -32,7 +32,7 @@ export default async function ShipmentDetailPage({
   const { data: s } = await supabase
     .from("shipments")
     .select(
-      `*, clients(name), zones(id, name, color), drivers(id, first_name, last_name),
+      `*, clients(name), zones!zone_id(id, name, color), drivers(id, first_name, last_name),
        shipment_addresses(*),
        marketplace_connections(nickname, is_mock)`
     )

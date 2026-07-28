@@ -23,7 +23,7 @@ export default async function LabelsPage({ searchParams }: { searchParams: Searc
     .select(
       `id, external_shipment_id, external_order_id, pack_id, sold_at, internal_status,
        package_count, clients(name), marketplace_connections(nickname),
-       zones(name, color), drivers(first_name, last_name),
+       zones!zone_id(name, color), drivers(first_name, last_name),
        shipment_addresses(receiver_name, city, zip),
        shipping_labels(id, internal_status, version, download_count, generated_at, last_downloaded_at)`,
       { count: "exact" }

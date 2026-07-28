@@ -60,7 +60,7 @@ export default async function SellerHomePage({ searchParams }: { searchParams: S
     .select(
       `id, external_shipment_id, external_order_id, title_summary, internal_status,
        sold_at, promised_date,
-       zones(name, color), shipment_addresses(city, zip),
+       zones!zone_id(name, color), shipment_addresses(city, zip),
        shipping_labels(internal_status)`,
       { count: "exact" }
     )

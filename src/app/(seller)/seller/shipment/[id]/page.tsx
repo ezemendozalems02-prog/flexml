@@ -36,7 +36,7 @@ export default async function SellerShipmentPage({
       `id, external_shipment_id, external_order_id, title_summary, internal_status,
        external_status, external_substatus, sold_at, promised_date, attempt_count,
        package_count, client_id,
-       marketplace_connections(nickname), zones(name, color),
+       marketplace_connections(nickname), zones!zone_id(name, color),
        shipment_addresses(receiver_name, street, street_number, city, province, zip),
        shipping_labels(id, internal_status, format, version, generated_at)`
     )

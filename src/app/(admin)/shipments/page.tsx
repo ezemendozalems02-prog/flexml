@@ -34,7 +34,7 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
   let query = supabase
     .from("shipments")
     .select(
-      "id, external_shipment_id, external_order_id, title_summary, internal_status, external_status, is_flex, promised_date, attempt_count, created_at, clients(name), zones(name, color), drivers(first_name, last_name), shipment_addresses(city, zip)",
+      "id, external_shipment_id, external_order_id, title_summary, internal_status, external_status, is_flex, promised_date, attempt_count, created_at, clients(name), zones!zone_id(name, color), drivers(first_name, last_name), shipment_addresses(city, zip)",
       { count: "exact" }
     )
     .eq("organization_id", orgId);

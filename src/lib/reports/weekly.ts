@@ -83,7 +83,7 @@ export async function buildWeeklyReport(filters: WeeklyReportFilters): Promise<W
       `id, external_shipment_id, created_at, internal_status, external_status,
        attempt_count, is_flex,
        clients(name), marketplace_connections(nickname),
-       zones(name), drivers(first_name, last_name), shipment_addresses(city)`
+       zones!zone_id(name), drivers(first_name, last_name), shipment_addresses(city)`
     )
     .eq("organization_id", filters.organizationId)
     .gte("created_at", weekStart.toISOString())
