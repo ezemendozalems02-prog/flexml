@@ -1,13 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { processPendingNotifications } from "@/lib/mercadolibre/notifications-service";
 
 /**
  * POST /api/webhooks/mercadolibre
  * Endpoint de notificaciones de Mercado Libre.
- * Contrato: responder < 500 ms. Solo valida la estructura, persiste el
- * evento bruto con dedupe y responde 200. El procesamiento real lo hace
- * el cron de sync leyendo marketplace_notifications (status=pending).
+ * Contrato: responder < 500 ms. Valida la estructura, persiste el evento
+ * bruto con dedupe, responde 200 y recién después (via after()) procesa la
+ * cola de pendientes en la misma invocación. Sin cron activo (plan Hobby),
+ * este es el camino que mantiene los envíos al día en tiempo real; el cron,
+ * cuando exista, queda como red de seguridad para eventos perdidos.
  */
 
 const notificationSchema = z.object({
@@ -61,6 +64,15 @@ export async function POST(request: NextRequest) {
     console.error("Error guardando notificación ML:", error.message);
     // Responder 200 igualmente: ML reintenta y el evento se recupera por sync programada
   }
+
+  // Procesar la cola después de responder: no bloquea el contrato de 500 ms
+  after(async () => {
+    try {
+      await processPendingNotifications();
+    } catch (err) {
+      console.error("Procesamiento de notificaciones ML falló:", err);
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }
