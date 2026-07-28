@@ -116,8 +116,9 @@ export class MercadoLibreHttpAdapter implements MercadoLibreProvider {
       limit: String(Math.min(opts.limit, 50)),
       sort: "date_desc",
     });
-    if (opts.dateFrom) params.set("order.date_created.from", opts.dateFrom);
-    if (opts.dateTo) params.set("order.date_created.to", opts.dateTo);
+    // ML documenta fechas ISO con offset explícito ("-00:00"); rechaza el sufijo Z
+    if (opts.dateFrom) params.set("order.date_created.from", opts.dateFrom.replace(/Z$/, "-00:00"));
+    if (opts.dateTo) params.set("order.date_created.to", opts.dateTo.replace(/Z$/, "-00:00"));
     const data = await mlFetch<MLSearchResult<MLOrder>>(
       `/orders/search?${params.toString()}`,
       { accessToken: creds.accessToken }
