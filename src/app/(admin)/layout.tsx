@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { Sidebar } from "@/components/layout/sidebar";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { signOut } from "@/lib/auth/actions";
 import { LogOut } from "lucide-react";
 
@@ -17,6 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <span className="hidden text-sm text-slate-600 sm:block">
               {session.fullName ?? session.email}
             </span>
+            <ThemeToggle />
             <form action={signOut}>
               <button
                 type="submit"

@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Plug, RefreshCw } from "lucide-react";
+import { syncNow } from "./actions";
 
 export const metadata = { title: "Cuentas Mercado Libre" };
 
@@ -107,15 +108,29 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
                   </div>
                 )}
               </dl>
-              {["needs_reauth", "auth_revoked", "token_expired", "error"].includes(c.status) &&
-                client && (
-                  <Link
-                    href={`/api/oauth/mercadolibre/start?clientId=${client.id}`}
-                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" /> Reconectar
-                  </Link>
+              <div className="mt-3 flex items-center gap-4">
+                {["active", "syncing", "error"].includes(c.status) && (
+                  <form action={syncNow}>
+                    <input type="hidden" name="connectionId" value={c.id} />
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Sincronizar ahora
+                    </button>
+                  </form>
                 )}
+                {["needs_reauth", "auth_revoked", "token_expired", "error"].includes(c.status) &&
+                  client && (
+                    <Link
+                      prefetch={false}
+                      href={`/api/oauth/mercadolibre/start?clientId=${client.id}`}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Reconectar
+                    </Link>
+                  )}
+              </div>
             </div>
           );
         })}
@@ -142,6 +157,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             {(clients ?? []).map((c) => (
               <li key={c.id}>
                 <Link
+                  prefetch={false}
                   href={`/api/oauth/mercadolibre/start?clientId=${c.id}`}
                   className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
                 >

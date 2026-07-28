@@ -55,6 +55,7 @@ export default async function ClientsPage() {
                   <td className="px-4 py-3">
                     {conns.length === 0 ? (
                       <Link
+                        prefetch={false}
                         href={`/api/oauth/mercadolibre/start?clientId=${c.id}`}
                         className="text-sm font-medium text-blue-600 hover:underline"
                       >
