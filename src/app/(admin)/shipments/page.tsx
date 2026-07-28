@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge, ExternalStatusBadge, FlexBadge } from "@/components/ui/badge";
-import { INTERNAL_STATUSES, internalStatusLabel } from "@/lib/domain/statuses";
+import { INTERNAL_STATUSES, NOT_DISPATCHED_STATUSES, internalStatusLabel } from "@/lib/domain/statuses";
 
 export const metadata = { title: "Envíos" };
 
@@ -16,6 +16,8 @@ type SearchParams = Promise<{
   flex?: string;
   q?: string;
   page?: string;
+  when?: string; // today
+  dispatch?: string; // yes | no
 }>;
 
 export default async function ShipmentsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -56,6 +58,16 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
       `external_shipment_id.ilike.%${params.q}%,external_order_id.ilike.%${params.q}%,title_summary.ilike.%${params.q}%`
     );
   }
+  if (params.when === "today") {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    query = query.gte("created_at", todayStart.toISOString());
+  }
+  if (params.dispatch === "no") {
+    query = query.in("internal_status", NOT_DISPATCHED_STATUSES);
+  } else if (params.dispatch === "yes") {
+    query = query.not("internal_status", "in", `(${NOT_DISPATCHED_STATUSES.join(",")})`);
+  }
 
   const from = (page - 1) * PAGE_SIZE;
   const { data: shipments, count, error: queryError } = await query
@@ -89,6 +101,39 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
           Error consultando envíos: {queryError.message}
         </p>
       )}
+
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: "Todos", href: "/shipments", active: !params.when && !params.dispatch },
+          {
+            label: "Hoy",
+            href: queryString({ when: "today" }),
+            active: params.when === "today",
+          },
+          {
+            label: "Despachados",
+            href: queryString({ dispatch: "yes" }),
+            active: params.dispatch === "yes",
+          },
+          {
+            label: "No despachados",
+            href: queryString({ dispatch: "no" }),
+            active: params.dispatch === "no",
+          },
+        ].map((f) => (
+          <Link
+            key={f.label}
+            href={f.href}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+              f.active
+                ? "bg-slate-900 text-white"
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            {f.label}
+          </Link>
+        ))}
+      </div>
 
       <form className="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-6">
         <input

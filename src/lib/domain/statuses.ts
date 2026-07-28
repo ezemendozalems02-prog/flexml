@@ -98,6 +98,11 @@ export function internalStatusBadgeClass(status: string): string {
   return meta ? STATUS_GROUP_BADGE[meta.group] : STATUS_GROUP_BADGE.pending;
 }
 
+/** Estados previos a que el repartidor retire el paquete ("no despachado"). */
+export const NOT_DISPATCHED_STATUSES: InternalStatus[] = (
+  Object.keys(INTERNAL_STATUS_META) as InternalStatus[]
+).filter((s) => INTERNAL_STATUS_META[s].group === "pending");
+
 /** Estados que cuentan como "terminales" para efectividad semanal. */
 export const TERMINAL_STATUSES: InternalStatus[] = [
   "delivered",
