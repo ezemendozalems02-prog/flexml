@@ -24,13 +24,20 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const supabase = await createClient();
   const orgId = session.organization.id;
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // Día de hoy en horario argentino: ventas reales de hoy (sold_at), no la
+  // fecha en que se importaron a la base (created_at, que un sync masivo pisa).
+  const todayAR = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(new Date());
+  const todayStartAR = `${todayAR}T00:00:00-03:00`;
+  const tomorrowStartAR = new Date(Date.parse(`${todayAR}T00:00:00-03:00`) + 86400_000).toISOString();
 
   const [total, today, delivered, inDelivery, unassigned, noZone, incidents] =
     await Promise.all([
       resolveCount(baseCount(supabase, orgId)),
-      resolveCount(baseCount(supabase, orgId).gte("created_at", todayStart.toISOString())),
+      resolveCount(
+        baseCount(supabase, orgId).gte("sold_at", todayStartAR).lt("sold_at", tomorrowStartAR)
+      ),
       resolveCount(baseCount(supabase, orgId).eq("internal_status", "delivered")),
       resolveCount(baseCount(supabase, orgId).eq("internal_status", "out_for_delivery")),
       resolveCount(
@@ -63,7 +70,7 @@ export default async function DashboardPage() {
 
   const cards = [
     { label: "Envíos totales", value: total, icon: Package },
-    { label: "Ingresados hoy", value: today, icon: TrendingUp },
+    { label: "Ventas de hoy", value: today, icon: TrendingUp },
     { label: "En reparto", value: inDelivery, icon: Package },
     { label: "Entregados", value: delivered, icon: Package },
     { label: "Sin repartidor", value: unassigned, icon: AlertTriangle },

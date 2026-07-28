@@ -2,11 +2,24 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge, ExternalStatusBadge, FlexBadge } from "@/components/ui/badge";
-import { INTERNAL_STATUSES, NOT_DISPATCHED_STATUSES, internalStatusLabel } from "@/lib/domain/statuses";
+import { INTERNAL_STATUSES, internalStatusLabel } from "@/lib/domain/statuses";
 
 export const metadata = { title: "Envíos" };
 
 const PAGE_SIZE = 25;
+
+// Los filtros rápidos se basan en el estado que informa Mercado Libre
+// (external_status): el flujo interno recién arranca cuando el equipo opera,
+// y Dani compara estos números contra la pantalla de Ventas de ML.
+const ML_NOT_DISPATCHED = ["pending", "handling", "ready_to_ship"];
+const ML_DISPATCHED = ["shipped", "delivered", "not_delivered"];
+
+/** Fecha de hoy (YYYY-MM-DD) en horario argentino, sin importar el huso del servidor. */
+function todayInArgentina(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(new Date());
+}
 
 type SearchParams = Promise<{
   status?: string;
@@ -18,6 +31,7 @@ type SearchParams = Promise<{
   page?: string;
   when?: string; // today
   dispatch?: string; // yes | no
+  ml?: string; // shipped | delivered | cancelled
 }>;
 
 export default async function ShipmentsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -60,19 +74,18 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
     );
   }
   if (params.when === "today") {
-    // sold_at (fecha real de la venta en ML), no created_at (fecha en que
-    // nosotros la importamos) — si no, un sync masivo "ensucia" el filtro
-    // marcando como "hoy" ventas de cualquier fecha.
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const tomorrowStart = new Date(todayStart.getTime() + 86400_000);
-    query = query.gte("sold_at", todayStart.toISOString()).lt("sold_at", tomorrowStart.toISOString());
+    // Igual que "Envíos de hoy" en ML: lo prometido para despachar/entregar hoy
+    // (promised_date), no la fecha de venta ni la de importación.
+    query = query.eq("promised_date", todayInArgentina());
   }
   if (params.dispatch === "no") {
-    query = query.in("internal_status", NOT_DISPATCHED_STATUSES);
+    query = query.in("external_status", ML_NOT_DISPATCHED);
   } else if (params.dispatch === "yes") {
-    query = query.not("internal_status", "in", `(${NOT_DISPATCHED_STATUSES.join(",")})`);
+    query = query.in("external_status", ML_DISPATCHED);
   }
+  if (params.ml === "shipped") query = query.eq("external_status", "shipped");
+  else if (params.ml === "delivered") query = query.eq("external_status", "delivered");
+  else if (params.ml === "cancelled") query = query.eq("external_status", "cancelled");
 
   const from = (page - 1) * PAGE_SIZE;
   const { data: shipments, count, error: queryError } = await query
@@ -109,21 +122,36 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
 
       <div className="flex flex-wrap gap-2">
         {[
-          { label: "Todos", href: "/shipments", active: !params.when && !params.dispatch },
+          { label: "Todos", href: "/shipments", active: !params.when && !params.dispatch && !params.ml },
           {
             label: "Hoy",
-            href: queryString({ when: "today" }),
+            href: queryString({ when: "today", page: undefined }),
             active: params.when === "today",
           },
           {
+            label: "No despachados",
+            href: queryString({ dispatch: "no", ml: undefined, page: undefined }),
+            active: params.dispatch === "no",
+          },
+          {
             label: "Despachados",
-            href: queryString({ dispatch: "yes" }),
+            href: queryString({ dispatch: "yes", ml: undefined, page: undefined }),
             active: params.dispatch === "yes",
           },
           {
-            label: "No despachados",
-            href: queryString({ dispatch: "no" }),
-            active: params.dispatch === "no",
+            label: "En tránsito",
+            href: queryString({ ml: "shipped", dispatch: undefined, page: undefined }),
+            active: params.ml === "shipped",
+          },
+          {
+            label: "Entregados",
+            href: queryString({ ml: "delivered", dispatch: undefined, page: undefined }),
+            active: params.ml === "delivered",
+          },
+          {
+            label: "Cancelados",
+            href: queryString({ ml: "cancelled", dispatch: undefined, page: undefined }),
+            active: params.ml === "cancelled",
           },
         ].map((f) => (
           <Link
