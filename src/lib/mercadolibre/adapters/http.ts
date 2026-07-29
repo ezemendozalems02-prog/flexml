@@ -146,11 +146,24 @@ export class MercadoLibreHttpAdapter implements MercadoLibreProvider {
   }
 
   async getShipment(creds: MLCredentials, shipmentId: string): Promise<MLShipment> {
-    const data = await mlFetch<MLShipment>(`/shipments/${shipmentId}`, {
-      accessToken: creds.accessToken,
-      headers: { "x-format-new": "true" },
-    });
-    return { ...data, raw: data };
+    const data = await mlFetch<MLShipment & { logistic?: { type?: string; mode?: string } }>(
+      `/shipments/${shipmentId}`,
+      {
+        accessToken: creds.accessToken,
+        headers: { "x-format-new": "true" },
+      }
+    );
+    // Con x-format-new: true, ML anida el tipo/modo bajo "logistic": {type, mode,
+    // direction} en vez de los campos planos logistic_type/mode del formato
+    // clásico (confirmado con datos reales: venían siempre null). Se
+    // completan los planos desde el objeto anidado, con fallback por si en
+    // algún caso ML los sigue mandando planos.
+    return {
+      ...data,
+      logistic_type: data.logistic_type ?? data.logistic?.type,
+      mode: data.mode ?? data.logistic?.mode,
+      raw: data,
+    };
   }
 
   /**
