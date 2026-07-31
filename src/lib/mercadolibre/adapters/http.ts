@@ -146,22 +146,26 @@ export class MercadoLibreHttpAdapter implements MercadoLibreProvider {
   }
 
   async getShipment(creds: MLCredentials, shipmentId: string): Promise<MLShipment> {
-    const data = await mlFetch<MLShipment & { logistic?: { type?: string; mode?: string } }>(
-      `/shipments/${shipmentId}`,
-      {
-        accessToken: creds.accessToken,
-        headers: { "x-format-new": "true" },
+    const data = await mlFetch<
+      MLShipment & {
+        logistic?: { type?: string; mode?: string };
+        destination?: { shipping_address?: MLShipment["receiver_address"] };
       }
-    );
-    // Con x-format-new: true, ML anida el tipo/modo bajo "logistic": {type, mode,
-    // direction} en vez de los campos planos logistic_type/mode del formato
-    // clásico (confirmado con datos reales: venían siempre null). Se
-    // completan los planos desde el objeto anidado, con fallback por si en
-    // algún caso ML los sigue mandando planos.
+    >(`/shipments/${shipmentId}`, {
+      accessToken: creds.accessToken,
+      headers: { "x-format-new": "true" },
+    });
+    // Con x-format-new: true, ML reubica varios campos del formato clásico
+    // (confirmado con datos reales, todo venía null/vacío):
+    //  - logistic_type/mode -> anidados en "logistic": {type, mode, direction}
+    //  - receiver_address    -> "destination.shipping_address" (misma forma interna)
+    // Se completan los campos planos que espera el resto del código, con
+    // fallback por si ML los manda planos en algún caso.
     return {
       ...data,
       logistic_type: data.logistic_type ?? data.logistic?.type,
       mode: data.mode ?? data.logistic?.mode,
+      receiver_address: data.receiver_address ?? data.destination?.shipping_address,
       raw: data,
     };
   }
