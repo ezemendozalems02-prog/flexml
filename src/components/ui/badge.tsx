@@ -1,4 +1,5 @@
 import { internalStatusBadgeClass, internalStatusLabel } from "@/lib/domain/statuses";
+import { externalStatusLabel } from "@/lib/domain/ml-labels";
 
 export function StatusBadge({ status }: { status: string }) {
   return (
@@ -13,8 +14,11 @@ export function StatusBadge({ status }: { status: string }) {
 export function ExternalStatusBadge({ status }: { status: string | null }) {
   if (!status) return <span className="text-xs text-slate-400">No disponible</span>;
   return (
-    <span className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-0.5 font-mono text-xs text-slate-600 ring-1 ring-inset ring-slate-200">
-      {status}
+    <span
+      title={status}
+      className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600 ring-1 ring-inset ring-slate-200"
+    >
+      {externalStatusLabel(status)}
     </span>
   );
 }

@@ -5,7 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { StatusBadge, ExternalStatusBadge, FlexBadge } from "@/components/ui/badge";
 import { AssignDriverForm, SetZoneForm } from "@/components/shipments/operations-forms";
 import { internalStatusLabel } from "@/lib/domain/statuses";
-import { ArrowLeft } from "lucide-react";
+import {
+  externalSubstatusLabel,
+  flexReasonLabel,
+  logisticTypeLabel,
+  shippingModeLabel,
+} from "@/lib/domain/ml-labels";
+import { ArrowLeft, MapPin } from "lucide-react";
 
 export const metadata = { title: "Detalle de envío" };
 
@@ -81,6 +87,8 @@ export default async function ShipmentDetailPage({
     zip: string | null;
     reference: string | null;
     phone: string | null;
+    lat: number | null;
+    lng: number | null;
   } | null;
   const conn = s.marketplace_connections as unknown as { nickname: string | null; is_mock: boolean } | null;
   const driver = s.drivers as unknown as { id: string; first_name: string; last_name: string } | null;
@@ -89,6 +97,15 @@ export default async function ShipmentDetailPage({
   const maskedPhone = addr?.phone
     ? addr.phone.replace(/\d(?=\d{3})/g, "•")
     : null;
+
+  const fullAddress = addr?.street
+    ? `${addr.street} ${addr.street_number ?? ""}, ${addr.city ?? ""}`.trim()
+    : null;
+  const mapsHref = addr?.lat && addr?.lng
+    ? `https://www.google.com/maps/dir/?api=1&destination=${addr.lat},${addr.lng}`
+    : fullAddress
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(fullAddress)}`
+      : null;
 
   return (
     <div className="space-y-6">
@@ -125,12 +142,9 @@ export default async function ShipmentDetailPage({
             <Row label="ID de orden" value={s.external_order_id} />
             <Row label="Fecha de venta" value={s.sold_at ? new Date(s.sold_at).toLocaleString("es-AR") : null} />
             <Row label="Fecha prometida" value={s.promised_date} />
-            <Row label="Tipo logístico (ML)" value={s.logistic_type} />
-            <Row label="Modo (ML)" value={s.shipping_mode} />
-            <Row
-              label="Clasificación Flex"
-              value={s.flex_reason ? `${s.flex_reason} (regla ${s.flex_rule_version})` : null}
-            />
+            <Row label="Tipo logístico (ML)" value={logisticTypeLabel(s.logistic_type)} />
+            <Row label="Modo (ML)" value={shippingModeLabel(s.shipping_mode)} />
+            <Row label="Clasificación Flex" value={flexReasonLabel(s.flex_reason)} />
             <Row label="Intentos" value={String(s.attempt_count)} />
             <Row
               label="Entregado"
@@ -139,7 +153,19 @@ export default async function ShipmentDetailPage({
           </section>
 
           <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 className="mb-3 font-semibold">Destino</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Destino</h2>
+              {mapsHref && (
+                <a
+                  href={mapsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                >
+                  <MapPin className="h-3.5 w-3.5" /> Ver en Google Maps
+                </a>
+              )}
+            </div>
             <Row label="Destinatario" value={addr?.receiver_name} />
             <Row
               label="Dirección"
@@ -150,6 +176,11 @@ export default async function ShipmentDetailPage({
             <Row label="Provincia" value={addr?.province} />
             <Row label="Código postal" value={addr?.zip} />
             <Row label="Teléfono" value={maskedPhone} />
+            {!mapsHref && (
+              <p className="mt-2 text-xs text-slate-400">
+                Todavía no hay dirección ni coordenadas para armar el link a Maps.
+              </p>
+            )}
           </section>
 
           {(items ?? []).length > 0 && (
@@ -268,7 +299,7 @@ export default async function ShipmentDetailPage({
               value={s.last_synced_at ? new Date(s.last_synced_at).toLocaleString("es-AR") : null}
             />
             <Row label="Fuente del último cambio" value={s.last_change_source} />
-            <Row label="Subestado ML" value={s.external_substatus} />
+            <Row label="Subestado ML" value={externalSubstatusLabel(s.external_substatus)} />
             <Row
               label="Actualizado en ML"
               value={
