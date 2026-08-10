@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge, ExternalStatusBadge, FlexBadge } from "@/components/ui/badge";
-import { INTERNAL_STATUSES, internalStatusLabel } from "@/lib/domain/statuses";
+import { INTERNAL_STATUSES, TERMINAL_STATUSES, internalStatusLabel } from "@/lib/domain/statuses";
 
 export const metadata = { title: "Envíos" };
 
@@ -32,6 +32,7 @@ type SearchParams = Promise<{
   when?: string; // today
   dispatch?: string; // yes | no
   ml?: string; // shipped | delivered | cancelled
+  delayed?: string; // 1
 }>;
 
 export default async function ShipmentsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -86,6 +87,14 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
   if (params.ml === "shipped") query = query.eq("external_status", "shipped");
   else if (params.ml === "delivered") query = query.eq("external_status", "delivered");
   else if (params.ml === "cancelled") query = query.eq("external_status", "cancelled");
+  if (params.delayed === "1") {
+    // "Demorado" no es un estado que informe Mercado Libre: es una regla
+    // interna nuestra (fecha prometida ya pasada y el envío todavía no
+    // llegó a un estado final).
+    query = query
+      .lt("promised_date", todayInArgentina())
+      .not("internal_status", "in", `(${TERMINAL_STATUSES.join(",")})`);
+  }
 
   const from = (page - 1) * PAGE_SIZE;
   const { data: shipments, count, error: queryError } = await query
@@ -122,35 +131,44 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Se
 
       <div className="flex flex-wrap gap-2">
         {[
-          { label: "Todos", href: "/shipments", active: !params.when && !params.dispatch && !params.ml },
+          {
+            label: "Todos",
+            href: "/shipments",
+            active: !params.when && !params.dispatch && !params.ml && !params.delayed,
+          },
           {
             label: "Hoy",
-            href: queryString({ when: "today", page: undefined }),
+            href: queryString({ when: "today", dispatch: undefined, ml: undefined, delayed: undefined, page: undefined }),
             active: params.when === "today",
           },
           {
             label: "No despachados",
-            href: queryString({ dispatch: "no", ml: undefined, page: undefined }),
+            href: queryString({ dispatch: "no", when: undefined, ml: undefined, delayed: undefined, page: undefined }),
             active: params.dispatch === "no",
           },
           {
             label: "Despachados",
-            href: queryString({ dispatch: "yes", ml: undefined, page: undefined }),
+            href: queryString({ dispatch: "yes", when: undefined, ml: undefined, delayed: undefined, page: undefined }),
             active: params.dispatch === "yes",
           },
           {
             label: "En tránsito",
-            href: queryString({ ml: "shipped", dispatch: undefined, page: undefined }),
+            href: queryString({ ml: "shipped", when: undefined, dispatch: undefined, delayed: undefined, page: undefined }),
             active: params.ml === "shipped",
           },
           {
             label: "Entregados",
-            href: queryString({ ml: "delivered", dispatch: undefined, page: undefined }),
+            href: queryString({ ml: "delivered", when: undefined, dispatch: undefined, delayed: undefined, page: undefined }),
             active: params.ml === "delivered",
           },
           {
+            label: "Demorados",
+            href: queryString({ delayed: "1", when: undefined, dispatch: undefined, ml: undefined, page: undefined }),
+            active: params.delayed === "1",
+          },
+          {
             label: "Cancelados",
-            href: queryString({ ml: "cancelled", dispatch: undefined, page: undefined }),
+            href: queryString({ ml: "cancelled", when: undefined, dispatch: undefined, delayed: undefined, page: undefined }),
             active: params.ml === "cancelled",
           },
         ].map((f) => (

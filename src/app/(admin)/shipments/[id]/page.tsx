@@ -39,7 +39,7 @@ export default async function ShipmentDetailPage({
     .from("shipments")
     .select(
       `*, clients(name), zones!zone_id(id, name, color), drivers(id, first_name, last_name),
-       shipment_addresses(*),
+       shipment_addresses(*), incident_reasons(label),
        marketplace_connections(nickname, is_mock)`
     )
     .eq("id", id)
@@ -93,6 +93,7 @@ export default async function ShipmentDetailPage({
   const conn = s.marketplace_connections as unknown as { nickname: string | null; is_mock: boolean } | null;
   const driver = s.drivers as unknown as { id: string; first_name: string; last_name: string } | null;
   const zone = s.zones as unknown as { id: string; name: string; color: string } | null;
+  const incidentReason = s.incident_reasons as unknown as { label: string } | null;
 
   const maskedPhone = addr?.phone
     ? addr.phone.replace(/\d(?=\d{3})/g, "•")
@@ -258,9 +259,20 @@ export default async function ShipmentDetailPage({
         <div className="space-y-6">
           <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <h2 className="mb-3 font-semibold">Repartidor</h2>
-            <p className="mb-3 text-sm text-slate-600">
+            <p className="mb-1 text-sm text-slate-600">
               {driver ? `Asignado a ${driver.first_name} ${driver.last_name}` : "Sin asignar"}
             </p>
+            {driver && s.picked_up_at && (
+              <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-100">
+                Retirado por <strong>{driver.first_name} {driver.last_name}</strong> el{" "}
+                {new Date(s.picked_up_at).toLocaleString("es-AR")}
+              </p>
+            )}
+            {driver && !s.picked_up_at && (
+              <p className="mb-3 text-xs text-slate-400">
+                Asignado, pero todavía no confirmó el retiro (ni a mano ni escaneando la etiqueta).
+              </p>
+            )}
             {(s.flex_driver_name || s.flex_driver_id) && (
               <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
                 Transportista según Mercado Libre:{" "}
@@ -291,6 +303,15 @@ export default async function ShipmentDetailPage({
             </p>
             <SetZoneForm shipmentId={s.id} currentZoneId={zone?.id ?? null} zones={zones ?? []} />
           </section>
+
+          {(s.internal_status === "rescheduled" || s.rescheduled_to) && (
+            <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-amber-200">
+              <h2 className="mb-3 font-semibold text-amber-800">Reprogramación</h2>
+              <Row label="Fecha original" value={s.promised_date} />
+              <Row label="Nueva fecha" value={s.rescheduled_to} />
+              <Row label="Motivo" value={incidentReason?.label} />
+            </section>
+          )}
 
           <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <h2 className="mb-3 font-semibold">Sincronización</h2>

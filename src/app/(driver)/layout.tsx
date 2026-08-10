@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/auth/session";
 import { signOut } from "@/lib/auth/actions";
-import { Home, History, LogOut, User } from "lucide-react";
+import { Home, History, LogOut, ScanLine, User } from "lucide-react";
 import { branding } from "@/config/branding";
 
 export default async function DriverLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,13 @@ export default async function DriverLayout({ children }: { children: React.React
         >
           <Home className="h-5 w-5" />
           Hoy
+        </Link>
+        <Link
+          href="/driver/scan"
+          className="flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-slate-600 hover:text-slate-900"
+        >
+          <ScanLine className="h-5 w-5" />
+          Escanear
         </Link>
         <Link
           href="/driver/history"

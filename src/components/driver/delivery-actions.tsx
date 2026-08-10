@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { markDeliveredAction, markFailedAction } from "@/lib/actions/shipments";
 import type { ActionResult } from "@/lib/auth/actions";
 import { FormError } from "@/components/ui/form";
+import { useGeo } from "@/lib/hooks/use-geo";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, XCircle } from "lucide-react";
 
@@ -18,20 +19,6 @@ function BigSubmit({ className, children }: { className: string; children: React
       {pending ? "Guardando…" : children}
     </button>
   );
-}
-
-/** Captura la ubicación del dispositivo (si el repartidor lo permite). */
-function useGeo() {
-  const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: false, timeout: 8000 }
-    );
-  }, []);
-  return geo;
 }
 
 export function DeliveryActions({
