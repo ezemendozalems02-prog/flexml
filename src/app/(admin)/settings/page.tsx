@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth/session";
 import { branding } from "@/config/branding";
+import { EditNameForm } from "@/components/profile/edit-name-form";
 
 export const metadata = { title: "Configuración" };
 
@@ -40,14 +41,19 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="mb-3 font-semibold">Tu usuario</h2>
-        <Row label="Nombre" value={session.fullName} />
+        <div className="flex justify-between gap-4 border-b border-slate-100 py-2.5 text-sm">
+          <span className="shrink-0 text-slate-500">Nombre</span>
+          <div className="w-full max-w-xs">
+            <EditNameForm key={session.fullName} currentName={session.fullName} />
+          </div>
+        </div>
         <Row label="Correo" value={session.email} />
         <Row label="Rol" value={session.membership.role} />
       </section>
 
       <p className="text-xs text-slate-400">
-        {branding.name} · La edición de estos datos y la gestión de usuarios e invitaciones
-        se habilitan en la próxima iteración del panel.
+        {branding.name} · La edición de la empresa y la gestión de usuarios e invitaciones se
+        habilitan en la próxima iteración del panel.
       </p>
     </div>
   );
