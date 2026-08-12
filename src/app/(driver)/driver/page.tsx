@@ -8,6 +8,7 @@ export const metadata = { title: "Mi día" };
 
 const OPEN_STATUSES = [
   "assigned",
+  "picked_up",
   "route_prep",
   "out_for_delivery",
   "visited",

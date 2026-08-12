@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { EditNameForm } from "@/components/profile/edit-name-form";
 
 export const metadata = { title: "Perfil" };
 
@@ -40,6 +41,14 @@ export default async function DriverProfilePage() {
           </div>
         </dl>
       </div>
+
+      <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <p className="mb-2 text-sm font-medium text-slate-700">
+          Nombre de tu cuenta (el que aparece arriba de la app)
+        </p>
+        <EditNameForm key={session.fullName} currentName={session.fullName} />
+      </div>
+
       <p className="text-center text-xs text-slate-400">
         Instalá esta app desde el menú del navegador: “Agregar a pantalla de inicio”.
       </p>

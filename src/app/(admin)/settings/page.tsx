@@ -1,5 +1,7 @@
 import { requireSession } from "@/lib/auth/session";
 import { branding } from "@/config/branding";
+import { EditNameForm } from "@/components/profile/edit-name-form";
+import { EditOrgForm } from "@/components/settings/edit-org-form";
 
 export const metadata = { title: "Configuración" };
 
@@ -27,27 +29,50 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="mb-3 font-semibold">Empresa</h2>
-        <Row label="Nombre comercial" value={org.name} />
-        <Row label="Razón social" value={org.legal_name} />
-        <Row label="CUIT" value={org.tax_id} />
-        <Row label="Correo" value={org.email} />
-        <Row label="Teléfono" value={org.phone} />
-        <Row label="Zona horaria" value={org.timezone} />
-        <Row label="Moneda" value={org.currency} />
-        <Row label="País" value={org.country} />
-        <Row label="Plan" value={org.status} />
+        {session.membership.role === "owner" ? (
+          <EditOrgForm
+            key={org.name}
+            currentName={org.name}
+            currentLegalName={org.legal_name}
+            currentPhone={org.phone}
+          />
+        ) : (
+          <>
+            <Row label="Nombre comercial" value={org.name} />
+            <Row label="Razón social" value={org.legal_name} />
+            <Row label="Teléfono" value={org.phone} />
+          </>
+        )}
+        <div className="mt-3">
+          <Row label="CUIT" value={org.tax_id} />
+          <Row label="Correo" value={org.email} />
+          <Row label="Zona horaria" value={org.timezone} />
+          <Row label="Moneda" value={org.currency} />
+          <Row label="País" value={org.country} />
+          <Row label="Plan" value={org.status} />
+        </div>
+        {session.membership.role !== "owner" && (
+          <p className="mt-2 text-xs text-slate-400">
+            Solo el usuario dueño de la cuenta puede editar estos datos.
+          </p>
+        )}
       </section>
 
       <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="mb-3 font-semibold">Tu usuario</h2>
-        <Row label="Nombre" value={session.fullName} />
+        <div className="flex justify-between gap-4 border-b border-slate-100 py-2.5 text-sm">
+          <span className="shrink-0 text-slate-500">Nombre</span>
+          <div className="w-full max-w-xs">
+            <EditNameForm key={session.fullName} currentName={session.fullName} />
+          </div>
+        </div>
         <Row label="Correo" value={session.email} />
         <Row label="Rol" value={session.membership.role} />
       </section>
 
       <p className="text-xs text-slate-400">
-        {branding.name} · La edición de estos datos y la gestión de usuarios e invitaciones
-        se habilitan en la próxima iteración del panel.
+        {branding.name} · La gestión de usuarios e invitaciones se habilita en la próxima
+        iteración del panel.
       </p>
     </div>
   );

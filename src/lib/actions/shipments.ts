@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole, requireSession } from "@/lib/auth/session";
 import type { ActionResult } from "@/lib/auth/actions";
-import type { InternalStatus } from "@/lib/domain/statuses";
+import { internalStatusLabel, type InternalStatus } from "@/lib/domain/statuses";
 
 /**
  * Acciones operativas sobre envíos. Regla central: TODO cambio de estado
@@ -360,4 +360,166 @@ export async function markFailedAction(
   revalidatePath("/driver");
   revalidatePath(`/shipments/${shipment.id}`);
   return {};
+}
+
+// ---------------------------------------------------------------------------
+// Escaneo de paquetes (repartidor) — reusa asignación + trazabilidad ya
+// existentes, solo cambia CÓMO se dispara: en vez de que un admin elija del
+// desplegable, el propio repartidor "reclama" el envío leyendo el código de
+// la etiqueta con la cámara.
+// ---------------------------------------------------------------------------
+
+export type ScanResult = {
+  ok: boolean;
+  message: string;
+  shipmentId?: string;
+  externalId?: string;
+};
+
+/** Estados desde los que ya no tiene sentido "retirar" el paquete de nuevo. */
+const TERMINAL_FOR_SCAN = [
+  "delivered",
+  "cancelled_by_ml",
+  "cancelled_by_client",
+  "returned",
+  "pending_return",
+  "returned_to_seller",
+  "lost",
+];
+
+/**
+ * El código de barras y el QR de la etiqueta Flex codifican el Shipment ID
+ * de Mercado Libre (el mismo id que guardamos en external_shipment_id) —
+ * confirmado por la documentación pública de ML, no por el formato exacto
+ * del símbolo. Nos quedamos con la secuencia numérica más larga por si el
+ * lector agrega texto/URLs alrededor del id.
+ */
+function extractShipmentId(raw: string): string {
+  const digits = raw.match(/\d{6,}/g);
+  if (!digits || digits.length === 0) return raw.trim();
+  return digits.reduce((longest, d) => (d.length > longest.length ? d : longest), digits[0]);
+}
+
+export async function scanPickupAction(
+  rawCode: string,
+  coords?: { lat: number; lng: number }
+): Promise<ScanResult> {
+  const session = await requireSession();
+  if (session.membership.role !== "driver" || !session.membership.driver_id) {
+    return { ok: false, message: "Solo los repartidores pueden escanear paquetes" };
+  }
+
+  const code = rawCode?.trim();
+  if (!code) return { ok: false, message: "Código vacío" };
+  const externalId = extractShipmentId(code);
+  const driverId = session.membership.driver_id;
+
+  const supabase = await createClient();
+  const { data: shipment } = await supabase
+    .from("shipments")
+    .select(
+      "id, organization_id, internal_status, driver_id, picked_up_at, drivers(first_name, last_name)"
+    )
+    .eq("organization_id", session.organization.id)
+    .eq("external_shipment_id", externalId)
+    .maybeSingle();
+
+  if (!shipment) {
+    return {
+      ok: false,
+      message: `No encontramos ningún envío con el código ${externalId}`,
+      externalId,
+    };
+  }
+
+  if (TERMINAL_FOR_SCAN.includes(shipment.internal_status)) {
+    return {
+      ok: false,
+      message: `Este envío ya está cerrado (${internalStatusLabel(shipment.internal_status)})`,
+      shipmentId: shipment.id,
+      externalId,
+    };
+  }
+
+  const otherDriver = shipment.drivers as unknown as {
+    first_name: string;
+    last_name: string;
+  } | null;
+
+  // Ya lo tiene OTRO repartidor activo -> bloquear (punto 3 del pedido)
+  if (shipment.driver_id && shipment.driver_id !== driverId) {
+    const name = otherDriver ? `${otherDriver.first_name} ${otherDriver.last_name}`.trim() : "otro repartidor";
+    return {
+      ok: false,
+      message: `Este paquete ya fue retirado por ${name}`,
+      shipmentId: shipment.id,
+      externalId,
+    };
+  }
+
+  // Ya lo escaneaste vos antes -> no repetir el registro, solo confirmar
+  if (shipment.driver_id === driverId && shipment.picked_up_at) {
+    return {
+      ok: true,
+      message: "Ya tenías este paquete escaneado",
+      shipmentId: shipment.id,
+      externalId,
+    };
+  }
+
+  const now = new Date().toISOString();
+
+  // Sin dueño todavía (o asignado a vos pero sin confirmar retiro): reclamarlo
+  if (shipment.driver_id !== driverId) {
+    await supabase
+      .from("shipment_assignments")
+      .update({ active: false, unassigned_at: now })
+      .eq("shipment_id", shipment.id)
+      .eq("active", true);
+
+    const { error: assignErr } = await supabase.from("shipment_assignments").insert({
+      shipment_id: shipment.id,
+      driver_id: driverId,
+      assigned_by: session.userId,
+    });
+    if (assignErr) {
+      return { ok: false, message: `No se pudo asignar: ${assignErr.message}`, externalId };
+    }
+  }
+
+  const { error: updErr } = await supabase
+    .from("shipments")
+    .update({
+      driver_id: driverId,
+      internal_status: "picked_up",
+      picked_up_at: now,
+      last_change_source: "driver",
+    })
+    .eq("id", shipment.id);
+  if (updErr) return { ok: false, message: updErr.message, externalId };
+
+  await recordStatusChange({
+    shipmentId: shipment.id,
+    organizationId: shipment.organization_id,
+    oldStatus: shipment.internal_status,
+    newStatus: "picked_up",
+    source: "driver",
+    userId: session.userId,
+    driverId,
+    eventType: "picked_up_scan",
+    note: "Retirado por escaneo de código",
+    metadata: coords ? { lat: coords.lat, lng: coords.lng } : {},
+  });
+
+  revalidatePath("/driver");
+  revalidatePath(`/driver/shipment/${shipment.id}`);
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${shipment.id}`);
+
+  return {
+    ok: true,
+    message: "Paquete retirado y asignado a vos",
+    shipmentId: shipment.id,
+    externalId,
+  };
 }
