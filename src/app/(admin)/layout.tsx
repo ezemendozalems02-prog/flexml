@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/auth/session";
 import { Sidebar } from "@/components/layout/sidebar";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { signOut } from "@/lib/auth/actions";
 import { LogOut } from "lucide-react";
@@ -12,8 +13,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-slate-50">
       <Sidebar orgName={session.organization.name} isDemo={session.organization.is_demo} />
       <div className="lg:pl-60">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 backdrop-blur">
-          <div className="text-sm text-slate-500">{session.organization.name}</div>
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+          <div className="flex items-center gap-3">
+            <MobileNav
+              orgName={session.organization.name}
+              isDemo={session.organization.is_demo}
+            />
+            <div className="text-sm text-slate-500">{session.organization.name}</div>
+          </div>
           <div className="flex items-center gap-4">
             <span className="hidden text-sm text-slate-600 sm:block">
               {session.fullName ?? session.email}

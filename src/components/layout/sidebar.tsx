@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { branding } from "@/config/branding";
 
-const NAV = [
+export const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/shipments", label: "Envíos", icon: Package },
   { href: "/clients", label: "Clientes", icon: Users },
