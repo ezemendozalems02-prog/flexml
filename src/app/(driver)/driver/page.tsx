@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/ui/badge";
+import { WelcomeBanner } from "@/components/ui/welcome-banner";
 import { ChevronRight, PackageCheck, PackageX, Package } from "lucide-react";
 
 export const metadata = { title: "Mi día" };
@@ -61,6 +62,21 @@ export default async function DriverHomePage() {
         </h1>
         <p className="text-sm text-slate-500">Tu recorrido de hoy</p>
       </div>
+
+      <WelcomeBanner storageKey="driver-intro-v1" title="Cómo usar la app">
+        <p>
+          <strong>Hoy</strong>: tus entregas pendientes, con la próxima arriba de todo.
+        </p>
+        <p>
+          <strong>Escanear</strong>: cuando retirás los paquetes, apuntá la cámara al código de
+          la etiqueta de cada uno y quedan a tu nombre automáticamente — no hace falta que nadie
+          te los asigne a mano.
+        </p>
+        <p>
+          <strong>Historial</strong>: tus entregas ya cerradas. <strong>Perfil</strong>: tus
+          datos y el nombre que ve el resto del equipo.
+        </p>
+      </WelcomeBanner>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl bg-white p-3 text-center shadow-sm ring-1 ring-slate-200">

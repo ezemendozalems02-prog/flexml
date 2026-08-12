@@ -96,8 +96,10 @@ export function Scanner() {
       <div>
         <h1 className="text-xl font-bold">Escanear paquetes</h1>
         <p className="text-sm text-slate-500">
-          Apuntá la cámara al código de la etiqueta (código de barras o QR). Cada paquete leído queda
-          retirado a tu nombre automáticamente.
+          Cada paquete tiene un código de barras y un QR impresos en la etiqueta de envío (la
+          misma etiqueta con la dirección del destinatario). Apuntá la cámara a cualquiera de los
+          dos — no hace falta acertarle al lugar exacto, con encuadrar la etiqueta completa
+          alcanza. Cada lectura queda retirada a tu nombre automáticamente.
         </p>
       </div>
 

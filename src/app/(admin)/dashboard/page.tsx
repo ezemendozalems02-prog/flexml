@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { AlertTriangle, Package, PlugZap, TrendingUp } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
+import { WelcomeBanner } from "@/components/ui/welcome-banner";
 
 export const metadata = { title: "Dashboard" };
 
@@ -89,6 +90,20 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-sm text-slate-500">Resumen operativo de {session.organization.name}</p>
       </div>
+
+      <WelcomeBanner storageKey="admin-intro-v1" title="Guía rápida del panel">
+        <p>
+          En el celular, tocá el botón ☰ arriba a la izquierda para moverte entre las secciones
+          (Envíos, Repartidores, Zonas, Configuración, etc.).
+        </p>
+        <p>
+          <strong>Envíos</strong> es donde vas a pasar la mayor parte del tiempo: ahí filtrás por
+          Hoy, Despachados, Demorados, etc. <strong>Repartidores</strong> muestra cuánto tiene
+          cada uno cargado. Los repartidores retiran sus paquetes escaneando el código de la
+          etiqueta desde su propia app — no hace falta asignarlos a mano salvo que quieras
+          reasignar algo puntual.
+        </p>
+      </WelcomeBanner>
 
       {(badConnections?.length ?? 0) > 0 && (
         <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">

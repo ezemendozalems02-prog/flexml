@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/ui/badge";
 import { LabelButtons, CopyId } from "@/components/labels/label-actions";
+import { WelcomeBanner } from "@/components/ui/welcome-banner";
 import { Search } from "lucide-react";
 
 export const metadata = { title: "Mis envíos" };
@@ -100,6 +101,16 @@ export default async function SellerHomePage({ searchParams }: { searchParams: S
           nadie.
         </p>
       </div>
+
+      <WelcomeBanner storageKey="seller-intro-v1" title="Cómo usar este portal">
+        <p>
+          Buscá tu venta por número de orden o de envío, o filtrá por estado. En cada envío
+          podés ver o descargar la etiqueta Flex sin tener que pedírsela a nadie.
+        </p>
+        <p>
+          Si algo no llegó como esperabas, usá <strong>Mis reportes</strong> arriba para avisar.
+        </p>
+      </WelcomeBanner>
 
       <form className="flex gap-2">
         <div className="relative flex-1">
